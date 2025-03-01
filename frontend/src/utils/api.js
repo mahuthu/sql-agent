@@ -9,24 +9,56 @@ const api = axios.create({
   },
 });
 
-// Add API key to requests
+// Add request interceptor to include token
 api.interceptors.request.use((config) => {
-  const apiKey = localStorage.getItem('apiKey');
-  if (apiKey) {
-    config.headers['X-API-Key'] = apiKey;
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
 
+// Add response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear invalid tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth endpoints
-export const login = async (credentials) => {
-  const response = await api.post('/auth/token', credentials);
-  return response.data;
+export const login = async (email, password) => {
+  const formData = new URLSearchParams();
+  formData.append('username', email);  // OAuth2 expects 'username'
+  formData.append('password', password);
+
+  try {
+    const response = await api.post('/auth/token', formData.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+    
+    // Debug log
+    console.log('Login response:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error('Login error:', error.response?.data);
+    throw error;
+  }
 };
 
-export const register = async (userData) => {
-  const response = await api.post('/auth/register', userData);
-  return response.data;
+export const register = async ({ email, password }) => {
+  return api.post('/auth/register', { email, password });
 };
 
 export const refreshToken = async () => {
@@ -61,9 +93,15 @@ export const deleteTemplate = async (templateId) => {
 };
 
 // Query endpoints
-export const executeQuery = async (templateId, data) => {
-  const response = await api.post(`/queries/${templateId}`, data);
-  return response.data;
+export const executeQuery = async (templateId, queryData) => {
+  try {
+    const response = await api.post(`/queries/${templateId}`, queryData);
+    console.log('API executeQuery response:', response.data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Execute query error:', error);
+    throw error;
+  }
 };
 
 export const getQueryHistory = async () => {
@@ -73,12 +111,12 @@ export const getQueryHistory = async () => {
 
 // Usage endpoints
 export const getUsageStats = async () => {
-  const response = await api.get('/usage/stats');
+  const response = await api.get('/queries/stats');
   return response.data;
 };
 
 export const getDetailedUsage = async () => {
-  const response = await api.get('/usage/detailed');
+  const response = await api.get('/queries/detailed');
   return response.data;
 };
 
@@ -89,8 +127,14 @@ export const updateUserSettings = async (settings) => {
 };
 
 export const refreshApiKey = async () => {
-  const response = await api.post('/users/refresh-api-key');
-  return response.data;
+  try {
+    const response = await api.post('/auth/refresh-api-key');
+    // The response already includes the data structure we want
+    return response.data;  // This should be the object with status, message, data, and error
+  } catch (error) {
+    console.error('Refresh API key error:', error);
+    throw error;
+  }
 };
 
 // Subscription endpoints
@@ -104,13 +148,43 @@ export const getCurrentSubscription = async () => {
   return response.data;
 };
 
+export const getSubscriptionUsage = async () => {
+  const response = await api.get('/subscriptions/usage');
+  return response.data;
+};
+
+export const createSubscription = async (data) => {
+  const response = await api.post('/subscriptions/subscribe', data);
+  return response.data;
+};
+
+export const updateSubscription = async (data) => {
+  const response = await api.put('/subscriptions/update', data);
+  return response.data;
+};
+
+export const cancelSubscription = async () => {
+  const response = await api.delete('/subscriptions/cancel');
+  return response.data;
+};
+
 export const createCheckoutSession = async (priceId) => {
-  const response = await api.post('/subscriptions/create-checkout-session', { priceId });
+  const response = await api.post('/subscriptions/create-checkout-session', { price_id: priceId });
   return response.data;
 };
 
 export const createPortalSession = async () => {
   const response = await api.post('/subscriptions/create-portal-session');
+  return response.data;
+};
+
+export const checkSubscriptionStatus = async () => {
+  const response = await api.get('/subscriptions/check-status');
+  return response.data;
+};
+
+export const refreshSubscriptionCredits = async () => {
+  const response = await api.post('/subscriptions/refresh-credits');
   return response.data;
 };
 

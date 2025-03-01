@@ -6,33 +6,28 @@ import {
   Button,
   useColorModeValue,
   Box,
-  List,
-  ListItem,
-  ListIcon,
-  Divider,
+  useToast,
   HStack,
 } from '@chakra-ui/react';
-import { CheckIcon } from '@chakra-ui/icons';
 import {
   Card,
   PageTransition,
   SectionHeading,
-  AnimatedBadge,
 } from './common';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { errorToast } from './common/Toast';
-import {
+import { 
+  getCurrentSubscription, 
   getSubscriptionPlans,
-  getCurrentSubscription,
   createCheckoutSession,
-  createPortalSession,
+  createPortalSession 
 } from '../utils/api';
 
 const Subscription = () => {
-  const [plans, setPlans] = useState([]);
   const [currentPlan, setCurrentPlan] = useState(null);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const toast = useToast();
 
   const textColor = useColorModeValue('gray.600', 'gray.300');
   const highlightColor = useColorModeValue('brand.500', 'brand.200');
@@ -43,14 +38,32 @@ const Subscription = () => {
 
   const loadSubscriptionData = async () => {
     try {
+      setLoading(true);
       const [plansData, currentSubData] = await Promise.all([
         getSubscriptionPlans(),
         getCurrentSubscription(),
       ]);
-      setPlans(plansData);
-      setCurrentPlan(currentSubData);
+      
+      if (plansData?.data) {
+        setPlans(plansData.data);
+      } else {
+        setPlans([]);
+        console.error('No plans data received');
+      }
+
+      if (currentSubData?.data) {
+        setCurrentPlan(currentSubData.data);
+      }
     } catch (error) {
-      errorToast('Error', 'Failed to load subscription data');
+      console.error('Subscription data loading error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load subscription data',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
     } finally {
       setLoading(false);
     }
@@ -62,7 +75,14 @@ const Subscription = () => {
       const { sessionUrl } = await createCheckoutSession(priceId);
       window.location.href = sessionUrl;
     } catch (error) {
-      errorToast('Error', 'Failed to create checkout session');
+      toast({
+        title: 'Error',
+        description: 'Failed to create checkout session',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
       setProcessing(false);
     }
   };
@@ -73,7 +93,14 @@ const Subscription = () => {
       const { portalUrl } = await createPortalSession();
       window.location.href = portalUrl;
     } catch (error) {
-      errorToast('Error', 'Failed to access subscription portal');
+      toast({
+        title: 'Error',
+        description: 'Failed to access subscription portal',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
       setProcessing(false);
     }
   };
@@ -96,9 +123,11 @@ const Subscription = () => {
                   <Text fontSize="xl" color={highlightColor}>
                     {currentPlan.name}
                   </Text>
-                  <Text color={textColor}>
-                    Next billing date: {new Date(currentPlan.current_period_end).toLocaleDateString()}
-                  </Text>
+                  {currentPlan.current_period_end && (
+                    <Text color={textColor}>
+                      Next billing date: {new Date(currentPlan.current_period_end).toLocaleDateString()}
+                    </Text>
+                  )}
                 </VStack>
                 <Button
                   onClick={handleManageSubscription}
@@ -113,7 +142,7 @@ const Subscription = () => {
         )}
 
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-          {plans.map((plan) => (
+          {Array.isArray(plans) && plans.map((plan) => (
             <Card key={plan.id}>
               <VStack spacing={4} align="stretch">
                 <Text fontSize="2xl" fontWeight="bold">
@@ -124,25 +153,14 @@ const Subscription = () => {
                 </Text>
                 <Text color={textColor}>{plan.description}</Text>
                 
-                <Divider />
-                
-                <List spacing={3}>
-                  {plan.features.map((feature, index) => (
-                    <ListItem key={index}>
-                      <ListIcon as={CheckIcon} color={highlightColor} />
-                      {feature}
-                    </ListItem>
-                  ))}
-                </List>
-                
                 <Button
                   colorScheme="brand"
                   size="lg"
-                  onClick={() => handleSubscribe(plan.price_id)}
+                  onClick={() => handleSubscribe(plan.stripe_price_id)}
                   isLoading={processing}
-                  isDisabled={currentPlan?.price_id === plan.price_id}
+                  isDisabled={currentPlan?.stripe_price_id === plan.stripe_price_id}
                 >
-                  {currentPlan?.price_id === plan.price_id ? 'Current Plan' : 'Subscribe'}
+                  {currentPlan?.stripe_price_id === plan.stripe_price_id ? 'Current Plan' : 'Subscribe'}
                 </Button>
               </VStack>
             </Card>

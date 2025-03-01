@@ -26,7 +26,7 @@ const Register = () => {
   });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
-  const history = useNavigate();
+  const navigate = useNavigate();
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.600', 'gray.300');
@@ -41,10 +41,12 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await register(formData.email, formData.password);
-      history.push('/login');
+      const success = await register(formData.email, formData.password);
+      if (success) {
+        navigate('/login');
+      }
     } catch (error) {
-      errorToast('Registration Failed', error.message);
+      console.error('Registration error:', error);
     } finally {
       setLoading(false);
     }

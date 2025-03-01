@@ -6,6 +6,7 @@ import {
   useColorModeValue,
   Text,
   Link,
+  useToast,
 } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -16,14 +17,16 @@ import {
   FormInput,
   SectionHeading,
 } from './common';
-import { errorToast } from './common/Toast';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const history = useNavigate();
+  const navigate = useNavigate();
+  const toast = useToast();
   
   const textColor = useColorModeValue('gray.600', 'gray.300');
 
@@ -32,10 +35,19 @@ const Login = () => {
     setLoading(true);
     
     try {
-      await login(email, password);
-      history.push('/');
+      const success = await login(formData.email, formData.password);
+      if (success) {
+        navigate('/dashboard');
+      }
     } catch (error) {
-      errorToast('Login Failed', error.message);
+      console.error('Login error:', error);
+      toast({
+        title: 'Login Failed',
+        description: error.response?.data?.detail || 'An error occurred during login',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -53,8 +65,8 @@ const Login = () => {
                 <FormLabel>Email Address</FormLabel>
                 <FormInput
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="Enter your email"
                 />
               </FormControl>
@@ -63,8 +75,8 @@ const Login = () => {
                 <FormLabel>Password</FormLabel>
                 <FormInput
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="Enter your password"
                 />
               </FormControl>

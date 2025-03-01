@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@chakra-ui/react';
 import {
   Grid,
   useColorModeValue,
@@ -11,7 +13,6 @@ import {
   IconButton,
 } from '@chakra-ui/react';
 import { AddIcon, SettingsIcon } from '@chakra-ui/icons';
-import { useNavigate } from 'react-router-dom';
 import {
   Card,
   PageTransition,
@@ -20,13 +21,13 @@ import {
   AnimatedBadge,
 } from './common';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { errorToast, successToast } from './common/Toast';
 import { getTemplates, deleteTemplate } from '../utils/api';
 
 const TemplateList = () => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const history = useNavigate();
+  const navigate = useNavigate();
+  const toast = useToast();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.600', 'gray.300');
@@ -40,7 +41,14 @@ const TemplateList = () => {
       const response = await getTemplates();
       setTemplates(response.data);
     } catch (error) {
-      errorToast('Error', 'Failed to load templates');
+      toast({
+        title: 'Error',
+        description: 'Failed to load templates',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
     } finally {
       setLoading(false);
     }
@@ -50,10 +58,24 @@ const TemplateList = () => {
     if (window.confirm('Are you sure you want to delete this template?')) {
       try {
         await deleteTemplate(id);
-        successToast('Success', 'Template deleted successfully');
+        toast({
+          title: 'Success',
+          description: 'Template deleted successfully',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+          position: 'top-right',
+        });
         loadTemplates();
       } catch (error) {
-        errorToast('Error', 'Failed to delete template');
+        toast({
+          title: 'Error',
+          description: 'Failed to delete template',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+          position: 'top-right',
+        });
       }
     }
   };
@@ -67,7 +89,7 @@ const TemplateList = () => {
           Query Templates
           <AnimatedButton
             leftIcon={<AddIcon />}
-            onClick={() => history.push('/templates/new')}
+            onClick={() => navigate('/templates/new')}
             ml="auto"
             size="sm"
           >
@@ -97,10 +119,10 @@ const TemplateList = () => {
                     size="sm"
                   />
                   <MenuList>
-                    <MenuItem onClick={() => history.push(`/query/${template.id}`)}>
+                    <MenuItem onClick={() => navigate(`/query/${template.id}`)}>
                       Query
                     </MenuItem>
-                    <MenuItem onClick={() => history.push(`/templates/${template.id}/edit`)}>
+                    <MenuItem onClick={() => navigate(`/templates/${template.id}/edit`)}>
                       Edit
                     </MenuItem>
                     <MenuItem onClick={() => handleDelete(template.id)} color="red.500">

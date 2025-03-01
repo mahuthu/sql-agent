@@ -12,6 +12,9 @@ import {
   Td,
   IconButton,
   Tooltip,
+  HStack,
+  Badge,
+  Button,
 } from '@chakra-ui/react';
 import { RepeatIcon, ViewIcon } from '@chakra-ui/icons';
 import { useQueryHistory } from '../hooks/useQueryHistory';
@@ -55,20 +58,20 @@ const QueryHistory = ({ onSelectQuery }) => {
               </Tr>
             </Thead>
             <Tbody>
-              {history.map((query) => (
-                <Tr key={query.id}>
-                  <Td>{new Date(query.timestamp).toLocaleString()}</Td>
-                  <Td>{query.template_name}</Td>
+              {history.map((item) => (
+                <Tr key={item.id}>
+                  <Td>{new Date(item.created_at).toLocaleString()}</Td>
+                  <Td>{item.template_id}</Td>
                   <Td>
                     <Text color={textColor} noOfLines={1}>
-                      {query.question}
+                      {item.question}
                     </Text>
                   </Td>
                   <Td>
                     <AnimatedBadge
-                      colorScheme={query.status === 'success' ? 'green' : 'red'}
+                      colorScheme={item.status === 'success' ? 'green' : 'red'}
                     >
-                      {query.status}
+                      {item.status}
                     </AnimatedBadge>
                   </Td>
                   <Td>
@@ -77,7 +80,7 @@ const QueryHistory = ({ onSelectQuery }) => {
                         icon={<ViewIcon />}
                         size="sm"
                         variant="ghost"
-                        onClick={() => onSelectQuery(query)}
+                        onClick={() => onSelectQuery(item)}
                         aria-label="View query"
                       />
                     </Tooltip>

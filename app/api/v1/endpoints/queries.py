@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.dependencies import get_current_user_by_api_key
+from app.dependencies import get_current_user_by_api_key, check_credits
 from app.models.user import User
 from app.models.template import QueryTemplate
 from app.models.query_history import QueryHistory
 from app.core.agent import SQLQueryAgent
 from app.schemas.response import StandardResponse
-from typing import Dict
+from typing import Dict, List
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 import time
+from app.schemas.query_history import QueryHistoryResponse
 
 router = APIRouter()
 
@@ -26,12 +28,9 @@ async def execute_query(
 ):
     """Execute a natural language query using a specific template"""
     
-    # Check user credits
-    if current_user.credits_remaining <= 0:
-        raise HTTPException(
-            status_code=402,
-            detail="No credits remaining. Please upgrade your subscription."
-        )
+    # Check credits before executing query
+    if current_user.subscription_status == "free":
+        await check_credits(current_user, db)
     
     # Get the template
     template = db.query(QueryTemplate).filter(
@@ -71,10 +70,17 @@ async def execute_query(
         current_user.credits_remaining -= 1
         db.commit()
         
+        # Format the result for the frontend
+        formatted_result = {
+            "sql": result.get("sql", ""),
+            "result": result.get("result", []),  # This should be the actual query results
+            "explanation": result.get("explanation", "")
+        }
+        
         return StandardResponse(
             status="success",
             message="Query executed successfully",
-            data=result
+            data=formatted_result
         )
         
     except Exception as e:
@@ -92,23 +98,151 @@ async def execute_query(
             error_message=str(e)
         )
         
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
-@router.get("/history", response_model=StandardResponse)
+@router.get("/history", response_model=StandardResponse[List[QueryHistoryResponse]])
 async def get_query_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_by_api_key)
 ):
     """Get user's query history"""
-    history = db.query(QueryHistory).filter(
+    try:
+        # Get history records
+        history = db.query(QueryHistory).filter(
+            QueryHistory.user_id == current_user.id
+        ).order_by(QueryHistory.created_at.desc()).all()
+        
+        # Convert to response models
+        history_responses = [
+            QueryHistoryResponse.model_validate(record) 
+            for record in history
+        ]
+        
+        return StandardResponse(
+            status="success",
+            message="Query history retrieved successfully",
+            data=history_responses
+        )
+    except Exception as e:
+        print(f"Error fetching query history: {str(e)}")  # Add logging
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve query history: {str(e)}"
+        )
+
+@router.get("/stats", response_model=StandardResponse)
+async def get_usage_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_by_api_key)
+):
+    """Get usage statistics for the current user"""
+    try:
+        # Get queries from the last 30 days
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        
+        recent_queries = db.query(QueryHistory).filter(
+            QueryHistory.user_id == current_user.id,
+            QueryHistory.created_at >= thirty_days_ago
+        ).all()
+        
+        # Calculate statistics
+        total_queries = len(recent_queries)
+        successful_queries = len([q for q in recent_queries if q.status == "success"])
+        failed_queries = total_queries - successful_queries
+        avg_execution_time = sum([q.execution_time for q in recent_queries]) / total_queries if total_queries > 0 else 0
+        
+        stats = {
+            "total_queries": total_queries,
+            "successful_queries": successful_queries,
+            "failed_queries": failed_queries,
+            "average_execution_time": round(avg_execution_time, 2),
+            "queries_by_day": get_queries_by_day(recent_queries)
+        }
+        
+        return StandardResponse(
+            status="success",
+            message="Usage statistics retrieved",
+            data=stats
+        )
+    except Exception as e:
+        print(f"Error getting stats: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve usage statistics"
+        )
+
+@router.get("/detailed", response_model=StandardResponse)
+async def get_detailed_usage(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_by_api_key)
+):
+    """Get detailed usage information"""
+    # Get all queries
+    queries = db.query(QueryHistory).filter(
         QueryHistory.user_id == current_user.id
     ).order_by(QueryHistory.created_at.desc()).all()
     
+    # Get template usage
+    template_usage = {}
+    for query in queries:
+        template_id = str(query.template_id)
+        if template_id not in template_usage:
+            template_usage[template_id] = {
+                "total": 0,
+                "successful": 0,
+                "failed": 0,
+                "template_name": query.template.name if query.template else "Unknown"
+            }
+        
+        template_usage[template_id]["total"] += 1
+        if query.status == "success":
+            template_usage[template_id]["successful"] += 1
+        else:
+            template_usage[template_id]["failed"] += 1
+    
+    detailed_stats = {
+        "template_usage": template_usage,
+        "recent_queries": [
+            {
+                "id": q.id,
+                "question": q.question,
+                "status": q.status,
+                "execution_time": q.execution_time,
+                "created_at": q.created_at,
+                "template_name": q.template.name if q.template else "Unknown"
+            }
+            for q in queries[:10]  # Last 10 queries
+        ]
+    }
+    
     return StandardResponse(
         status="success",
-        message="Query history retrieved",
-        data=history
+        message="Detailed usage information retrieved",
+        data=detailed_stats
     )
+
+def get_queries_by_day(queries: List[QueryHistory]) -> Dict:
+    """Helper function to group queries by day"""
+    queries_by_day = {}
+    for query in queries:
+        day = query.created_at.date().isoformat()
+        if day not in queries_by_day:
+            queries_by_day[day] = {
+                "total": 0,
+                "successful": 0,
+                "failed": 0
+            }
+        
+        queries_by_day[day]["total"] += 1
+        if query.status == "success":
+            queries_by_day[day]["successful"] += 1
+        else:
+            queries_by_day[day]["failed"] += 1
+    
+    return queries_by_day
 
 def record_query_history(
     db: Session,

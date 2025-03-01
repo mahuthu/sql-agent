@@ -12,6 +12,12 @@ import {
   Tr,
   Th,
   Td,
+  Alert,
+  AlertIcon,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
 } from '@chakra-ui/react';
 import {
   Card,
@@ -22,11 +28,13 @@ import {
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { errorToast } from './common/Toast';
 import { getUsageStats, getDetailedUsage } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const UsageStats = () => {
   const [stats, setStats] = useState(null);
   const [detailedUsage, setDetailedUsage] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const textColor = useColorModeValue('gray.600', 'gray.300');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -37,13 +45,27 @@ const UsageStats = () => {
 
   const loadUsageData = async () => {
     try {
-      const [statsData, usageData] = await Promise.all([
+      const [statsResponse, usageResponse] = await Promise.all([
         getUsageStats(),
         getDetailedUsage()
       ]);
-      setStats(statsData);
-      setDetailedUsage(usageData);
+
+      // Calculate success rate from the stats data
+      const statsData = statsResponse.data;
+      const successRate = statsData.total_queries > 0
+        ? ((statsData.successful_queries / statsData.total_queries) * 100)
+        : 0;
+
+      setStats({
+        ...statsData,
+        success_rate: successRate,
+        total_credits: 1000, // Default value, should come from subscription
+        credits_remaining: statsData.credits_remaining || 0,
+      });
+      
+      setDetailedUsage(usageResponse.data.recent_queries || []);
     } catch (error) {
+      console.error('Error loading usage data:', error);
       errorToast('Error', 'Failed to load usage data');
     } finally {
       setLoading(false);
@@ -51,11 +73,37 @@ const UsageStats = () => {
   };
 
   if (loading) return <LoadingSpinner />;
+  if (!stats) return null;
 
   return (
     <PageTransition>
       <VStack spacing={8} align="stretch">
         <SectionHeading>Usage Statistics</SectionHeading>
+
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
+          <StatCard
+            label="Total Queries"
+            value={stats.total_queries || 0}
+            helpText="All time"
+          />
+          <StatCard
+            label="Success Rate"
+            value={`${((stats.successful_queries / stats.total_queries) * 100 || 0).toFixed(1)}%`}
+            helpText={`${stats.successful_queries} of ${stats.total_queries} queries`}
+          />
+          <StatCard
+            label="Credits Remaining"
+            value={user?.credits_remaining || 0}
+            helpText={user?.subscription_status === 'free' ? 'Free Trial' : 'Premium'}
+          />
+        </SimpleGrid>
+
+        {user?.subscription_status === 'free' && user?.credits_remaining <= 5 && (
+          <Alert status="warning">
+            <AlertIcon />
+            Your free credits are running low! Subscribe to get unlimited queries.
+          </Alert>
+        )}
 
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
           <Card>
@@ -73,7 +121,7 @@ const UsageStats = () => {
                 />
               </Box>
               <Text color={textColor} fontSize="sm">
-                Credits reset on {new Date(stats.next_reset).toLocaleDateString()}
+                Based on your current subscription plan
               </Text>
             </VStack>
           </Card>
@@ -99,30 +147,30 @@ const UsageStats = () => {
 
         <Card>
           <VStack spacing={4} align="stretch">
-            <Text fontSize="lg" fontWeight="bold">Detailed Usage</Text>
+            <Text fontSize="lg" fontWeight="bold">Recent Queries</Text>
             <Box overflowX="auto">
               <Table variant="simple">
                 <Thead>
                   <Tr>
                     <Th>Date</Th>
-                    <Th>Queries</Th>
-                    <Th>Credits Used</Th>
+                    <Th>Question</Th>
                     <Th>Status</Th>
+                    <Th>Execution Time</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {detailedUsage.map((usage) => (
-                    <Tr key={usage.id}>
-                      <Td>{new Date(usage.date).toLocaleDateString()}</Td>
-                      <Td>{usage.queries_count}</Td>
-                      <Td>{usage.credits_used}</Td>
+                  {detailedUsage.map((query) => (
+                    <Tr key={query.id}>
+                      <Td>{new Date(query.created_at).toLocaleDateString()}</Td>
+                      <Td>{query.question}</Td>
                       <Td>
                         <AnimatedBadge
-                          colorScheme={usage.status === 'success' ? 'green' : 'red'}
+                          colorScheme={query.status === 'success' ? 'green' : 'red'}
                         >
-                          {usage.status}
+                          {query.status}
                         </AnimatedBadge>
                       </Td>
+                      <Td>{query.execution_time.toFixed(2)}ms</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -132,6 +180,18 @@ const UsageStats = () => {
         </Card>
       </VStack>
     </PageTransition>
+  );
+};
+
+const StatCard = ({ label, value, helpText }) => {
+  return (
+    <Card>
+      <Stat>
+        <StatLabel>{label}</StatLabel>
+        <StatNumber>{value}</StatNumber>
+        <StatHelpText>{helpText}</StatHelpText>
+      </Stat>
+    </Card>
   );
 };
 

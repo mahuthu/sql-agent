@@ -20,22 +20,25 @@ import {
   SectionHeading,
 } from './common';
 import { LoadingSpinner } from './common/LoadingSpinner';
-import { successToast, errorToast } from './common/Toast';
+import { useCustomToast } from '../hooks/useCustomToast';
 import { getTemplate, createTemplate, updateTemplate } from '../utils/api';
+
+const defaultFormData = {
+  name: '',
+  description: '',
+  database_uri: '',
+  example_queries: [{ question: '', query: '' }],  // Default example query
+  is_public: false,
+};
 
 const TemplateForm = () => {
   const { id } = useParams();
-  const history = useNavigate();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(id ? true : false);
   const [saving, setSaving] = useState(false);
+  const { showSuccessToast, showErrorToast } = useCustomToast();
   
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    database_uri: '',
-    example_queries: [{ question: '', query: '' }],
-    is_public: false,
-  });
+  const [formData, setFormData] = useState(defaultFormData);
 
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
@@ -47,11 +50,23 @@ const TemplateForm = () => {
 
   const loadTemplate = async () => {
     try {
-      const data = await getTemplate(id);
-      setFormData(data);
+      const response = await getTemplate(id);
+      const templateData = response.data; // Access the data from the response
+
+      // Set form data with existing values, falling back to defaults if needed
+      setFormData({
+        name: templateData.name || '',
+        description: templateData.description || '',
+        database_uri: templateData.database_uri || '',
+        example_queries: Array.isArray(templateData.example_queries) && templateData.example_queries.length > 0
+          ? templateData.example_queries
+          : [{ question: '', query: '' }],
+        is_public: templateData.is_public || false,
+      });
     } catch (error) {
-      errorToast('Error', 'Failed to load template');
-      history.push('/templates');
+      console.error('Error loading template:', error);
+      showErrorToast('Error', 'Failed to load template');
+      navigate('/templates');
     } finally {
       setLoading(false);
     }
@@ -64,20 +79,28 @@ const TemplateForm = () => {
     try {
       if (id) {
         await updateTemplate(id, formData);
-        successToast('Success', 'Template updated successfully');
+        showSuccessToast('Success', 'Template updated successfully');
       } else {
         await createTemplate(formData);
-        successToast('Success', 'Template created successfully');
+        showSuccessToast('Success', 'Template created successfully');
       }
-      history.push('/templates');
+      navigate('/templates');
     } catch (error) {
-      errorToast('Error', error.message);
+      showErrorToast('Error', error.message);
     } finally {
       setSaving(false);
     }
   };
 
   const addExampleQuery = () => {
+    if (!formData.example_queries) {
+      setFormData({
+        ...formData,
+        example_queries: [{ question: '', query: '' }]
+      });
+      return;
+    }
+
     setFormData({
       ...formData,
       example_queries: [
@@ -88,7 +111,23 @@ const TemplateForm = () => {
   };
 
   const removeExampleQuery = (index) => {
+    if (!formData.example_queries) return;
+
     const newQueries = formData.example_queries.filter((_, i) => i !== index);
+    setFormData({ 
+      ...formData, 
+      example_queries: newQueries.length ? newQueries : [{ question: '', query: '' }]
+    });
+  };
+
+  const updateExampleQuery = (index, field, value) => {
+    if (!formData.example_queries) return;
+
+    const newQueries = [...formData.example_queries];
+    newQueries[index] = {
+      ...newQueries[index],
+      [field]: value
+    };
     setFormData({ ...formData, example_queries: newQueries });
   };
 
@@ -144,27 +183,19 @@ const TemplateForm = () => {
               <Box w="full">
                 <FormLabel>Example Queries</FormLabel>
                 <VStack spacing={4} align="stretch">
-                  {formData.example_queries.map((query, index) => (
+                  {formData.example_queries?.map((query, index) => (
                     <Card key={index}>
                       <HStack spacing={4} align="start">
                         <VStack flex={1} spacing={4}>
                           <FormInput
                             placeholder="Question"
                             value={query.question}
-                            onChange={(e) => {
-                              const newQueries = [...formData.example_queries];
-                              newQueries[index].question = e.target.value;
-                              setFormData({ ...formData, example_queries: newQueries });
-                            }}
+                            onChange={(e) => updateExampleQuery(index, 'question', e.target.value)}
                           />
                           <Textarea
                             placeholder="SQL Query"
                             value={query.query}
-                            onChange={(e) => {
-                              const newQueries = [...formData.example_queries];
-                              newQueries[index].query = e.target.value;
-                              setFormData({ ...formData, example_queries: newQueries });
-                            }}
+                            onChange={(e) => updateExampleQuery(index, 'query', e.target.value)}
                             borderColor={borderColor}
                           />
                         </VStack>

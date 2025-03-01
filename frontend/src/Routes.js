@@ -18,7 +18,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/" element={<PrivateRoute component={Dashboard} />} />
+      <Route path="/dashboard" element={<PrivateRoute component={Dashboard} />} />
       <Route path="/templates" element={<PrivateRoute component={TemplateList} />} />
       <Route path="/templates/new" element={<PrivateRoute component={TemplateForm} />} />
       <Route 

@@ -18,11 +18,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Database
-    DATABASE_URL: str = "postgresql://postgres:Mahuthu2142@localhost:5432/sql_agent_db"
-
+    # DATABASE_URL: str = "postgresql://postgres:Mahuthu2142@localhost:5432/sql_agent_db"
+    DATABASE_URL: str = "postgresql://postgres:Mahuthu2142@localhost:5432/sql_agent_db?client_encoding=utf8&auth=scram-sha-256"
     
+    DATABASE_URL: str
     # OpenAI
-    OPENAI_API_KEY: str
+    # OPENAI_API_KEY: str
     
     # Stripe (Optional)
     STRIPE_SECRET_KEY: Optional[str] = None
@@ -37,10 +38,19 @@ class Settings(BaseSettings):
     MAIL_FROM: Optional[str] = None
     MAIL_PORT: Optional[int] = None
     MAIL_SERVER: Optional[str] = None
+
+    API_KEY_HEADER_NAME: str = "X-API-Key"
+
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
     
+    # Azure OpenAI
+    AZURE_OPENAI_API_KEY: str
+    AZURE_OPENAI_ENDPOINT: str
+    AZURE_OPENAI_DEPLOYMENT_NAME: str
+    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

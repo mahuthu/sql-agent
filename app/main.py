@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.endpoints import auth, templates, queries
+from app.api.v1.endpoints import auth, templates, queries, subscriptions, users
 from app.config import get_settings
 from app.database import Base, engine
 
@@ -8,38 +8,45 @@ from app.database import Base, engine
 Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
-# app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+
 app = FastAPI(
-    title="SQL Agent API",
-    description="AI-powered SQL query assistant",
-    version="1.0.0"
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION
 )
-# Configure CORS
+
+# # Configure CORS
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:3000"],  # Add your frontend URL
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# CORS configuration
+origins = [
+    "http://localhost:3000",  # React development server
+    "http://localhost:8000",  # FastAPI server
+    settings.FRONTEND_URL,    # Production frontend URL
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]  # Add this line
+
 )
 
 # Include routers
-app.include_router(
-    auth.router,
-    prefix=f"{settings.API_V1_STR}/auth",
-    tags=["auth"]
-)
-app.include_router(
-    templates.router,
-    prefix=f"{settings.API_V1_STR}/templates",
-    tags=["templates"]
-)
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
+app.include_router(queries.router, prefix="/api/v1/queries", tags=["queries"])
+app.include_router(subscriptions.router, prefix="/api/v1/subscriptions", tags=["subscriptions"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
-app.include_router(
-    queries.router,
-    prefix=f"{settings.API_V1_STR}/queries",
-    tags=["queries"]
-)
 
 if __name__ == "__main__":
     import uvicorn

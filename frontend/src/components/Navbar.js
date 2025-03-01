@@ -133,7 +133,7 @@ const Navbar = () => {
         >
           {user && (
             <>
-              <NavLink to="/">Dashboard</NavLink>
+              <NavLink to="/dashboard">Dashboard</NavLink>
               <NavLink to="/templates">Templates</NavLink>
               <NavLink to="/usage">Usage</NavLink>
             </>
