@@ -8,11 +8,22 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/sql_agent_db
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      DATABASE_URL: ${DATABASE_URL}  # Reference the DATABASE_URL from .env
+      SECRET_KEY: ${SECRET_KEY}  # Reference the SECRET_KEY from .env
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}  # Reference the STRIPE_SECRET_KEY from .env
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}  # Reference the STRIPE_WEBHOOK_SECRET from .env
+      FRONTEND_URL: ${FRONTEND_URL}  # Reference the FRONTEND_URL from .env
+      MAIL_USERNAME: ${MAIL_USERNAME}  # Reference the MAIL_USERNAME from .env
+      MAIL_PASSWORD: ${MAIL_PASSWORD}  # Reference the MAIL_PASSWORD from .env
+      MAIL_FROM: ${MAIL_FROM}  # Reference the MAIL_FROM from .env
+      MAIL_PORT: ${MAIL_PORT}  # Reference the MAIL_PORT from .env
+      MAIL_SERVER: ${MAIL_SERVER}  # Reference the MAIL_SERVER from .env
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}  # Reference the AZURE_OPENAI_API_KEY from .env
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}  # Reference the AZURE_OPENAI_ENDPOINT from .env
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME}  # Reference the AZURE_OPENAI_DEPLOYMENT_NAME from .env
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}  # Reference the AZURE_OPENAI_API_VERSION from .env
+  
+
     depends_on:
       - db
     volumes:
@@ -37,11 +48,21 @@ services:
     networks:
       - sql_agent_network
 
+  nginx:
+       image: nginx:alpine
+       ports:
+         - "3000:80"  # Map host port 3000 to Nginx port 80
+       volumes:
+         - ./frontend/build:/usr/share/nginx/html  # Serve the built React app
+       networks:
+         - sql_agent_network
+
   db:
     image: postgres:15
+    restart: always
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD: ${DATABASE_PASSWORD}  # Use an environment variable for the password
       - POSTGRES_DB=sql_agent_db
     ports:
       - "5432:5432"
@@ -50,12 +71,12 @@ services:
     networks:
       - sql_agent_network
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - sql_agent_network
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - sql_agent_network
 
 networks:
   sql_agent_network:
