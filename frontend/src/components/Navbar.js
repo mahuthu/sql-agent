@@ -17,6 +17,9 @@ import {
   useDisclosure,
   VStack,
   useBreakpointValue,
+  Stack,
+  Image,
+  Link,
 } from '@chakra-ui/react';
 import {
   HamburgerIcon,
@@ -131,6 +134,9 @@ const Navbar = () => {
           align="center"
           display={{ base: 'none', md: 'flex' }}
         >
+          <NavLink to="/">Home</NavLink>
+          <NavLink to="/documentation">Documentation</NavLink>
+          <NavLink to="/contact">Contact</NavLink>
           {user && (
             <>
               <NavLink to="/dashboard">Dashboard</NavLink>
@@ -211,9 +217,12 @@ const Navbar = () => {
           transition={{ duration: 0.2 }}
         >
           <VStack spacing={4} align="stretch">
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/documentation">Documentation</NavLink>
+            <NavLink to="/contact">Contact</NavLink>
             {user && (
               <>
-                <NavLink to="/">Dashboard</NavLink>
+                <NavLink to="/dashboard">Dashboard</NavLink>
                 <NavLink to="/templates">Templates</NavLink>
                 <NavLink to="/usage">Usage</NavLink>
                 <NavLink to="/settings">Settings</NavLink>

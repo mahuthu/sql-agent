@@ -12,10 +12,20 @@ import PrivateRoute from './components/PrivateRoute';
 import Subscription from './components/Subscription';
 import SubscriptionSuccess from './components/SubscriptionSuccess';
 import SubscriptionCancel from './components/SubscriptionCancel';
+import Homepage from './components/Homepage';
+import Contact from './components/Contact';
+import Documentation from './components/Documentation';
+
+
+
 
 const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/" element={<Homepage />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/documentation" element={<Documentation />} />
+
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard" element={<PrivateRoute component={Dashboard} />} />

@@ -139,4 +139,6 @@ export const AnimatedBadge = ({ children, ...props }) => {
       {children}
     </MotionBox>
   );
-}; 
+};
+
+// export { default as PageTransition } from './PageTransition'; 
