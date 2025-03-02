@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Database
     # DATABASE_URL: str = "postgresql://postgres:Mahuthu2142@localhost:5432/sql_agent_db"
     DATABASE_URL: str = "postgresql://postgres:Mahuthu2142@localhost:5432/sql_agent_db?client_encoding=utf8&auth=scram-sha-256"
-    
+    DATABASE_PASSWORD: str  # Ensure this exists
     DATABASE_URL: str
     # OpenAI
     # OPENAI_API_KEY: str
