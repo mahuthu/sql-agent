@@ -112,17 +112,17 @@ const Contact = () => {
               <ContactInfo
                 icon={FaEnvelope}
                 title="Email"
-                content="support@sqlagent.com"
+                content="support@sqlagent.xyz"
               />
               <ContactInfo
                 icon={FaPhone}
                 title="Phone"
-                content="+1 (555) 123-4567"
+                content="+254793704217"
               />
               <ContactInfo
                 icon={FaMapMarkerAlt}
                 title="Location"
-                content="123 Business Street, Tech City, TC 12345"
+                content="Keystone Park, 95 Riverside Drive 3 Floor, Block A, Riverside Dr, Nairobi"
               />
             </SimpleGrid>
 

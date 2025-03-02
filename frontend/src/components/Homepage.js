@@ -114,7 +114,7 @@ const Homepage = () => {
                   <br />
                   2. Click "Create Template"
                   <br />
-                  3. Define your database schema
+                  3. Provide your database URL
                   <br />
                   4. Set up sample queries
                   <br />
