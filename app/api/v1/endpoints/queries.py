@@ -148,6 +148,9 @@ async def get_usage_stats(
             QueryHistory.created_at >= thirty_days_ago
         ).all()
         
+        # Refresh user data to get current credits
+        user = db.query(User).filter(User.id == current_user.id).first()
+        
         # Calculate statistics
         total_queries = len(recent_queries)
         successful_queries = len([q for q in recent_queries if q.status == "success"])
@@ -159,7 +162,9 @@ async def get_usage_stats(
             "successful_queries": successful_queries,
             "failed_queries": failed_queries,
             "average_execution_time": round(avg_execution_time, 2),
-            "queries_by_day": get_queries_by_day(recent_queries)
+            "queries_by_day": get_queries_by_day(recent_queries),
+            "credits_remaining": user.credits_remaining,  # Add user credits to stats
+            "subscription_status": user.subscription_status  # Add subscription status if needed
         }
         
         return StandardResponse(

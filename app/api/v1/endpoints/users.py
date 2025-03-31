@@ -14,19 +14,26 @@ async def fix_user_credits(
     current_user: User = Depends(get_current_user_by_api_key),
     db: Session = Depends(get_db)
 ):
+    """
+    Reset user credits using the default values from the User model
+    if they have no credits.
+    """
     try:
-        if current_user.credits_remaining is None or current_user.credits_remaining == 0:
-            current_user.credits_remaining = 20
-            current_user.subscription_status = "free"
-            db.commit()
-            db.refresh(current_user)
+        # Get fresh user data from database
+        user = db.query(User).filter(User.id == current_user.id).first()
         
-        # Convert the database model to response schema
-        credits_response = UserResponse.model_validate(current_user)
+        if user.credits_remaining is None or user.credits_remaining == 0:
+            db.refresh(user)  # This will apply the model's default values
+            db.commit()
+            message = "Credits reset to default value"
+        else:
+            message = "User already has credits"
+        
+        credits_response = UserResponse.model_validate(user)
         
         return StandardResponse(
             status="success",
-            message="Credits updated successfully",
+            message=message,
             data=credits_response
         )
     except Exception as e:
